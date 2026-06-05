@@ -28,16 +28,15 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    # 4. Pythonスクリプトを実行して HTML / JSON を生成
-    - name: Run Python script
+   # 4. Pythonスクリプトを実行して、ファイルを確認し、Gitに認識させる
+    - name: Run Python script and Verify files
       env:
-        # スクリプト内で環境変数としてFTP情報を使えるように設定
         FTP_HOST: ${{ secrets.FTP_HOST }}
         FTP_USER: ${{ secrets.FTP_USER }}
         FTP_PASS: ${{ secrets.FTP_PASS }}
-      run: python main.py
-    - name: Verify generated files
       run: |
+        python main.py
+        git add -f news.json index.html
         ls -la
         if [ ! -f news.json ]; then echo "news.json が存在しません"; fi
         if [ ! -f index.html ]; then echo "index.html が存在しません"; fi

@@ -102,7 +102,7 @@ def collect_and_generate():
     # パイプ（|）で区切られたキーワードを、画面用に「, 」区切りに変換
     display_keywords = TARGET_KEYWORDS.replace("|", ", ")
 
-    # 登録されているRSSのURLを、HTMLの箇条書き（リンク化）の形に自動変換
+    # 登録されているRSSのURLを、HTMLの箇取り（リンク化）の形に自動変換
     source_links_html = ""
     for url in RSS_URLS:
         source_name = (
@@ -112,7 +112,8 @@ def collect_and_generate():
             f'<li><a href="{url}" target="_blank">{source_name}</a></li>'
         )
 
-  html_content = f"""<!DOCTYPE html>
+    # 💡ここの行頭のスペースを「4文字」に完璧に揃えました
+    html_content = f"""<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -156,6 +157,22 @@ def collect_and_generate():
 
         <p style="text-align:right; color:#666; font-size: 0.9em;">最終更新: {now_str} (30分おき自動更新)</p>
     """
+
+    # 💡 削れていたニュース記事の差し込み処理を再配置しました
+    for item in existing_articles:
+        html_content += f"""
+        <div class="article">
+            <div class="article-title"><a href="{item['link']}" target="_blank">{item['title']}</a></div>
+            <div class="summary">{item['summary']}</div>
+            <div style="font-size:0.8em; color:#999; margin-top:5px;">発表日時: {item['date']}</div>
+        </div>
+        """
+
+    html_content += """
+    </div>
+</body>
+</html>
+"""
 
     with open(
         os.path.join(os.path.dirname(__file__), HTML_FILE),

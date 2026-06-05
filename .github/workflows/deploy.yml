@@ -44,7 +44,7 @@ jobs:
         server: ${{ secrets.FTP_HOST }}
         username: ${{ secrets.FTP_USER }}
         password: ${{ secrets.FTP_PASS }}
-        server-dir: /web/jpnhack.xyz/gov-news-bot
+        server-dir: /web/jpnhack.xyz/gov-news-bot/
         local-dir: ./
         port: 21          # <--- 追記：明示的に21番ポートを指定
         security: loose   # <--- 追記：FTPS（明暗号化通信）を許可する設定

@@ -1,9 +1,9 @@
 import os
 import requests
 import json
-import re
 from datetime import datetime
 import pytz
+import feedparser  # 💡 特殊な省庁RSSも確実に解析するライブラリ
 
 # 環境変数から設定を取得
 KEYWORDS_JSON_URL = "https://jpnhack.xyz/gov-news-bot/keywords.json"
@@ -19,7 +19,7 @@ RSS_URLS = [
 ]
 
 def main():
-    print("--- ニュース取得ロボット起動 (ソース表示＆0秒反映対応版) ---")
+    print("--- ニュース取得ロボット起動 (feedparser搭載版) ---")
 
     # 1. サーバーから最新のキーワードJSONを読み込む
     TARGET_KEYWORDS = []
@@ -28,11 +28,9 @@ def main():
         req.encoding = 'utf-8'
         if req.status_code == 200:
             TARGET_KEYWORDS = req.json()
-            print(f"現在の監視キーワード: {TARGET_KEYWORDS}")
     except Exception as e:
         print(f"キーワードJSONの取得に失敗: {e}")
 
-    # キーワードが空ならデフォルト値をセット
     if not TARGET_KEYWORDS:
         TARGET_KEYWORDS = ["給付金", "増税", "法改正"]
 
@@ -43,7 +41,6 @@ def main():
         response.encoding = 'utf-8'
         if response.status_code == 200:
             existing_articles = response.json()
-            print(f"過去のニュースを {len(existing_articles)} 件読み込みました。")
     except Exception as e:
         print(f"過去データの取得スキップ: {e}")
 
@@ -54,43 +51,43 @@ def main():
     for url in RSS_URLS:
         print(f"フィード巡回中: {url}")
         try:
-            res = requests.get(url, timeout=10)
-            res.encoding = 'utf-8'
-            xml_text = res.text
+            # 💡 feedparserを使って安全かつ確実にパース
+            feed = feedparser.parse(url)
             
-            items = re.findall(r'<item>(.*?)</item>', xml_text, re.DOTALL)
-            for item in items:
-                title_match = re.search(r'<title>(.*?)</title>', item)
-                link_match = re.search(r'<link>(.*?)</link>', item)
-                desc_match = re.search(r'<description>(.*?)</description>', item)
+            for entry in feed.entries:
+                title = getattr(entry, 'title', '').strip()
+                link = getattr(entry, 'link', '').strip()
+                summary = getattr(entry, 'summary', '').strip()
                 
-                if title_match and link_match:
-                    title = title_match.group(1).replace('<![CDATA[', '').replace(']]>', '').strip()
-                    link = link_match.group(1).replace('<![CDATA[', '').replace(']]>', '').strip()
-                    summary = desc_match.group(1).replace('<![CDATA[', '').replace(']]>', '').strip() if desc_match else ""
-                    
-                    if link not in existing_links:
-                        existing_articles.append({
-                            "title": title,
-                            "link": link,
-                            "summary": summary,
-                            "fetched_at": datetime.now(pytz.timezone('Asia/Tokyo')).strftime('%Y-%m-%d %H:%M')
-                        })
-                        existing_links.add(link)
-                        new_count += 1
+                # 概要が空の場合は既存の他フィールドから補完を試みる
+                if not summary and hasattr(entry, 'description'):
+                    summary = entry.description.strip()
+                
+                # HTMLタグが混入している場合は簡易除去
+                summary = re.sub(r'<[^>]*?>', '', summary)
+
+                if title and link and (link not in existing_links):
+                    existing_articles.append({
+                        "title": title,
+                        "link": link,
+                        "summary": summary[:200], # 長すぎる場合は200文字でカット
+                        "fetched_at": datetime.now(pytz.timezone('Asia/Tokyo')).strftime('%Y-%m-%d %H:%M')
+                    })
+                    existing_links.add(link)
+                    new_count += 1
         except Exception as e:
             print(f"フィード取得エラー ({url}): {e}")
 
     print(f"新着ニュースを {new_count} 件追加しました。合計: {len(existing_articles)} 件")
 
-    # 💡 データベース（ニュース履歴）の最大蓄積数を 50件 から 500件 に拡張！
+    # 最大蓄積数を 500件 に設定
     existing_articles = existing_articles[-500:]
 
     # 4. news.json を保存出力
     with open("news.json", "w", encoding="utf-8") as f:
         json.dump(existing_articles, f, ensure_ascii=False, indent=4)
 
-    # 5. index.html（0秒反映＆ソースURLバッジ内蔵）を生成
+    # 5. index.html を生成
     jst = pytz.timezone('Asia/Tokyo')
     now_str = datetime.now(jst).strftime('%Y/%m/%d %H:%M:%S')
 
@@ -177,7 +174,6 @@ async function initializeRealtimeEngine() {{
             if (inTitle || inSummary) {{
                 matchCount++;
 
-                // 💡 URLから情報元（ソース）の名前を自動で割り出すロジック
                 let sourceName = "不明なソース";
                 const urlStr = article.link || "";
                 if (urlStr.includes("cas.go.jp")) sourceName = "🏛️ 内閣官房";

@@ -36,6 +36,11 @@ jobs:
         FTP_USER: ${{ secrets.FTP_USER }}
         FTP_PASS: ${{ secrets.FTP_PASS }}
       run: python main.py
+    - name: Verify generated files
+      run: |
+        ls -la
+        if [ ! -f news.json ]; then echo "news.json が存在しません"; fi
+        if [ ! -f index.html ]; then echo "index.html が存在しません"; fi
 
   # 5. 生成されたファイルをムームーサーバーへFTP転送
     - name: FTP Deploy

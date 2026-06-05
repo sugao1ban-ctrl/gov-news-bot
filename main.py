@@ -128,6 +128,12 @@ def main():
     <div class="keyword-tag-box">
         📡 <strong>現在のリアルタイム監視キーワード:</strong> <span id="current-tags">読み込み中...</span>
     </div>
+    
+    <div style="margin-bottom: 25px;">
+        <button onclick="initializeRealtimeEngine();" style="width: 100%; background-color: #10b981; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 1em; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            🔄 情報を更新する（最新の状態にする）
+        </button>
+    </div>
 
     <div id="news-list"></div>
     <div id="no-news">現在、キーワードに一致する新着ニュースはありません。</div>

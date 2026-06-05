@@ -27,6 +27,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        pip install pytz
 
    # 4. Pythonスクリプトを実行して、ファイルを確認し、Gitに認識させる
     - name: Run Python script and Verify files

@@ -152,7 +152,7 @@ def collect_and_generate():
                 {source_links_html}
             </ul>
             <div class="btn-setting-wrapper">
-                <a href="admin.php" class="btn-setting">⚙ キーワードを変更する</a>
+                <a href="admin.php" class="btn-setting" target="_blank">⚙ キーワードを変更する</a>
             </div>
         </div>
 

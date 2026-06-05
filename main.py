@@ -84,14 +84,19 @@ def collect_and_generate():
         json.dump(existing_articles, f, ensure_ascii=False, indent=4)
 
     # 4. HTMLファイルを生成
+    now_str = datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+
+    display_keywords = TARGET_KEYWORDS.replace("|", ", ")
+
+    # 登録されているRSSのURLを、HTMLの箇条書きの形に自動変換
     source_links_html = ""
     for url in RSS_URLS:
         source_name = "首相官邸 RSS" if "kantei.go.jp" in url else "NHKニュース RSS"
-        # ラベル（source_name）を <a> タグで囲むことで、ラベル自体がリンクになります
         source_links_html += (
             f'<li><a href="{url}" target="_blank">{source_name}</a></li>'
         )
-    
+
+    # 💡 変数の準備がすべて整ったあとに、HTMLの組み立て（f"""）を開始します
     html_content = f"""<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -100,7 +105,15 @@ def collect_and_generate():
     <style>
         body {{ font-family: sans-serif; background: #f5f7fa; padding: 20px; }}
         .container {{ max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-        h1 {{ border-bottom: 2px solid #0056b3; padding-bottom: 10px; color: #0056b3; }}
+        h1 {{ border-bottom: 2px solid #0056b3; padding-bottom: 10px; color: #0056b3; margin-bottom: 5px; }}
+        
+        /* 設定情報エリアのスタイル */
+        .info-box {{ background: #eef2f7; padding: 15px; border-radius: 4px; font-size: 0.9em; color: #4b5563; margin-bottom: 20px; border-left: 4px solid #0056b3; }}
+        .info-box ul {{ margin: 5px 0 0 20px; padding: 0; }}
+        .info-box li {{ margin-top: 5px; }}
+        .info-box a {{ color: #0056b3; text-decoration: none; font-weight: bold; }}
+        .info-box a:hover {{ text-decoration: underline; }}
+        
         .article {{ border-bottom: 1px solid #eee; padding: 15px 0; }}
         .article-title a {{ color: #111; text-decoration: none; font-weight: bold; font-size: 1.1em; }}
         .summary {{ color: #555; font-size: 0.95em; margin-top: 5px; }}
@@ -109,10 +122,16 @@ def collect_and_generate():
 <body>
     <div class="container">
         <h1>政府・政治 注目発言速報</h1>
-        <div class="keyword-box">
-            <strong>現在の監視キーワード：</strong> {display_keywords}
+        
+        <div class="info-box">
+            <div style="margin-bottom: 8px;"><strong>現在の監視キーワード：</strong> {display_keywords}</div>
+            <div><strong>情報取得ソース（RSS）：</strong></div>
+            <ul>
+                {source_links_html}
+            </ul>
         </div>
-        <p style="text-align:right; color:#666;">最終更新: {now_str} (30分おき自動更新)</p>
+
+        <p style="text-align:right; color:#666; font-size: 0.9em;">最終更新: {now_str} (30分おき自動更新)</p>
     """
 
     for item in existing_articles:
@@ -141,9 +160,7 @@ def collect_and_generate():
 
 
 if __name__ == "__main__":
-    # 実行結果がTrue（ファイル生成成功）だった場合
     if collect_and_generate():
         print("ファイルの生成が正常に完了しました。")
     else:
-        # ニュースが0件でファイルを更新しなかった場合、プログラムを終了する
         print("更新が必要なニュースはありませんでした。")

@@ -102,6 +102,9 @@ def collect_and_generate():
 <body>
     <div class="container">
         <h1>政府・政治 注目発言速報</h1>
+        <div class="keyword-box">
+            <strong>現在の監視キーワード：</strong> {display_keywords}
+        </div>
         <p style="text-align:right; color:#666;">最終更新: {now_str} (30分おき自動更新)</p>
     """
 

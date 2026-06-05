@@ -1,33 +1,41 @@
 import datetime
-import ftplib
 import json
 import os
 import re
 import feedparser
+import requests
 
-# --- 1. 設定項目 ---
-# 監視対象RSS
+# --- 設定項目 ---
 RSS_URLS = [
     "https://www.kantei.go.jp/rss/shinwaku.rdf",  # 首相官邸
     "https://www3.nhk.or.jp/rss/news/cat0.xml",  # NHK
 ]
-TARGET_KEYWORDS = r"給付金|増税|法改正|記者会見|緊急事態|閣議決定|補正予算"
+# テスト用に、確実にヒットしやすいワード（「日本」など）を一時的に入れて実験するのをおすすめします
+TARGET_KEYWORDS = r"給付金|増税|法改正|記者会見|緊急事態|閣議決定|補正予算|日本|アメリカ|原油|ナフサ"
 
-# ムームーサーバーのFTP接続情報（コントロールパネルで確認してください）
-FTP_HOST = "ftp.muumuu-server.com"  # もしくはロリポップの指定ホスト
-FTP_USER = "your_ftp_username"
-FTP_PASS = "your_ftp_password"
-FTP_DIR = "/web"  # 公開ディレクトリ（環境に合わせて変更してください）
-
-# 一時保存ファイル名
-HTML_FILE = "index.html"
 JSON_FILE = "news.json"
+HTML_FILE = "index.html"
+
+# ムームーサーバー上の既存のnews.jsonのURL（あなたのドメインに合わせて変更してください）
+EXISTING_JSON_URL = "https://jpnhack.xyz/gov-news-bot/news.json"
 
 
-# --- 2. ニュース取得・HTML生成ロジック ---
 def collect_and_generate():
-    matched_articles = []
+    # 1. サーバー上にある「過去の蓄積データ」をダウンロードして読み込む
+    existing_articles = []
+    try:
+        response = requests.get(EXISTING_JSON_URL, timeout=10)
+        if response.status_code == 200:
+            existing_articles = response.json()
+            print(f"過去のニュースを {len(existing_articles)} 件読み込みました。")
+    except Exception as e:
+        print(f"過去データの取得スキップ（初回、またはファイル未存在）: {e}")
 
+    # 過去のURLリストを作成（重複して追加しないため）
+    existing_links = {item["link"] for item in existing_articles}
+
+    # 2. 最新のRSSからニュースを取得
+    new_matched_count = 0
     for url in RSS_URLS:
         feed = feedparser.parse(url)
         for entry in feed.entries:
@@ -36,56 +44,73 @@ def collect_and_generate():
             link = entry.link
             date = entry.get("published", "")
 
+            # キーワード判定
             if re.search(TARGET_KEYWORDS, title) or re.search(
                 TARGET_KEYWORDS, summary
             ):
-                matched_articles.append(
-                    {
-                        "title": title,
-                        "summary": summary,
-                        "link": link,
-                        "date": date,
-                    }
-                )
+                # すでに保存済みのニュースでなければ追加
+                if link not in existing_links:
+                    existing_articles.append(
+                        {
+                            "title": title,
+                            "summary": summary,
+                            "link": link,
+                            "date": date,
+                        }
+                    )
+                    existing_links.add(link)
+                    new_matched_count += 1
 
-    if not matched_articles:
-        print("合致する新しいニュースはありませんでした。")
+    print(f"新しく合致したニュース: {new_matched_count} 件")
+
+    # 新しいニュースがなく、過去のデータも空なら何もしない
+    if not existing_articles:
+        print("表示すべきニュースがありません。")
         return False
 
-    # HTMLの生成
+    # ニュースを日付順（新しい順）に並び替える
+    # ※日付フォーマットがバラバラな場合は簡易的な並び替えになります
+    try:
+        existing_articles.sort(key=lambda x: x.get("date", ""), reverse=True)
+    except Exception:
+        pass
+
+    # 3. JSONファイルとして書き出し（過去分 + 新着分）
+    with open(
+        os.path.join(os.path.dirname(__file__), JSON_FILE),
+        "w",
+        encoding="utf-8",
+    ) as f:
+        json.dump(existing_articles, f, ensure_ascii=False, indent=4)
+
+    # 4. HTMLファイルを生成
     now_str = datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
     html_content = f"""<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>政府・政治 注目発言速報</title>
     <style>
-        body {{ font-family: sans-serif; background: #f5f7fa; color: #333; padding: 20px; }}
+        body {{ font-family: sans-serif; background: #f5f7fa; padding: 20px; }}
         .container {{ max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
         h1 {{ border-bottom: 2px solid #0056b3; padding-bottom: 10px; color: #0056b3; }}
-        .update-time {{ font-size: 0.9em; color: #666; text-align: right; }}
         .article {{ border-bottom: 1px solid #eee; padding: 15px 0; }}
-        .article-title {{ font-size: 1.2em; font-weight: bold; margin-bottom: 5px; }}
-        .article-title a {{ color: #111; text-decoration: none; }}
-        .article-title a:hover {{ text-decoration: underline; color: #0056b3; }}
-        .summary {{ font-size: 0.95em; color: #555; line-height: 1.6; }}
+        .article-title a {{ color: #111; text-decoration: none; font-weight: bold; font-size: 1.1em; }}
+        .summary {{ color: #555; font-size: 0.95em; margin-top: 5px; }}
     </style>
 </head>
 <body>
     <div class="container">
         <h1>政府・政治 注目発言速報</h1>
-        <p class="update-time">最終更新日時: {now_str}</p>
-    </div>
-    <div class="container" style="margin-top: 20px;">
+        <p style="text-align:right; color:#666;">最終更新: {now_str} (30分おき自動更新)</p>
     """
 
-    for item in matched_articles:
+    for item in existing_articles:
         html_content += f"""
         <div class="article">
             <div class="article-title"><a href="{item['link']}" target="_blank">{item['title']}</a></div>
             <div class="summary">{item['summary']}</div>
-            <div style="font-size:0.8em; color:#999; margin-top:5px;">ソース元: {item['date']}</div>
+            <div style="font-size:0.8em; color:#999; margin-top:5px;">発表日時: {item['date']}</div>
         </div>
         """
 
@@ -95,44 +120,15 @@ def collect_and_generate():
 </html>
 """
 
-    # ファイルに書き出し
-    with open(HTML_FILE, "w", encoding="utf-8") as f:
+    with open(
+        os.path.join(os.path.dirname(__file__), HTML_FILE),
+        "w",
+        encoding="utf-8",
+    ) as f:
         f.write(html_content)
-
-    with open(JSON_FILE, "w", encoding="utf-8") as f:
-        json.dump(matched_articles, f, ensure_ascii=False, indent=4)
 
     return True
 
 
-# --- 3. FTPアップロードロジック ---
-def upload_to_muumuu():
-    print("ムームーサーバーへ接続中...")
-    try:
-        # FTP接続 (必要に応じて FTP_TLS を使用)
-        ftp = ftplib.FTP(FTP_HOST)
-        ftp.login(user=FTP_USER, passwd=FTP_PASS)
-
-        # ターゲットディレクトリへ移動
-        ftp.cwd(FTP_DIR)
-
-        # HTMLアップロード
-        with open(HTML_FILE, "rb") as f:
-            ftp.storbinary(f"STOR {HTML_FILE}", f)
-        print(f"{HTML_FILE} をアップロードしました。")
-
-        # JSONアップロード
-        with open(JSON_FILE, "rb") as f:
-            ftp.storbinary(f"STOR {JSON_FILE}", f)
-        print(f"{JSON_FILE} をアップロードしました。")
-
-        ftp.quit()
-        print("アップロード完了。接続を閉じました。")
-
-    except Exception as e:
-        print(f"FTP転送中にエラーが発生しました: {e}")
-
-
 if __name__ == "__main__":
-    if collect_and_generate():
-        upload_to_muumuu()
+    collect_and_generate()

@@ -10,13 +10,13 @@ RSS_URLS = [
     "https://www.kantei.go.jp/rss/shinwaku.rdf",  # 首相官邸
     "https://www3.nhk.or.jp/rss/news/cat0.xml",  # NHK
 ]
-# テスト用に、確実にヒットしやすいワード（「日本」など）を一時的に入れて実験するのをおすすめします
-TARGET_KEYWORDS = r"給付金|軍備|法改正|記者会見|緊急事態|閣議決定|補正予算|日本|アメリカ|原油|ナフサ|給付金|増税|法改正|記者会見|ワクチン|"
+# テスト用に、確実にヒットしやすいワードを一時的に入れています
+TARGET_KEYWORDS = r"給付金|税|法改正|記者会見|緊急事態|閣議決定|補正予算|軍備|ナフサ|原油|ワクチン|緊急事態|自粛"
 
 JSON_FILE = "news.json"
 HTML_FILE = "index.html"
 
-# ムームーサーバー上の既存のnews.jsonのURL（あなたのドメインに合わせて変更してください）
+# ムームーサーバー上の既存のnews.jsonのURL
 EXISTING_JSON_URL = "https://jpnhack.xyz/gov-news-bot/news.json"
 
 
@@ -31,7 +31,7 @@ def collect_and_generate():
     except Exception as e:
         print(f"過去データの取得スキップ（初回、またはファイル未存在）: {e}")
 
-    # 過去のURLリストを作成（重複して追加しないため）
+    # 過去のURLリストを作成（重複防止）
     existing_links = {item["link"] for item in existing_articles}
 
     # 2. 最新のRSSからニュースを取得
@@ -48,7 +48,6 @@ def collect_and_generate():
             if re.search(TARGET_KEYWORDS, title) or re.search(
                 TARGET_KEYWORDS, summary
             ):
-                # すでに保存済みのニュースでなければ追加
                 if link not in existing_links:
                     existing_articles.append(
                         {
@@ -63,19 +62,18 @@ def collect_and_generate():
 
     print(f"新しく合致したニュース: {new_matched_count} 件")
 
-    # 新しいニュースがなく、過去のデータも空なら何もしない
+    # 新しいニュースがなく、過去のデータも空なら終了
     if not existing_articles:
         print("表示すべきニュースがありません。")
         return False
 
-    # ニュースを日付順（新しい順）に並び替える
-    # ※日付フォーマットがバラバラな場合は簡易的な並び替えになります
+    # ニュースを日付順に並び替え
     try:
         existing_articles.sort(key=lambda x: x.get("date", ""), reverse=True)
     except Exception:
         pass
 
-    # 3. JSONファイルとして書き出し（過去分 + 新着分）
+    # 3. JSONファイルとして書き出し
     with open(
         os.path.join(os.path.dirname(__file__), JSON_FILE),
         "w",
@@ -86,17 +84,19 @@ def collect_and_generate():
     # 4. HTMLファイルを生成
     now_str = datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
 
+    # パイプ（|）で区切られたキーワードを、画面用に「, 」区切りに変換
     display_keywords = TARGET_KEYWORDS.replace("|", ", ")
 
-    # 登録されているRSSのURLを、HTMLの箇条書きの形に自動変換
+    # 登録されているRSSのURLを、HTMLの箇条書き（リンク化）の形に自動変換
     source_links_html = ""
     for url in RSS_URLS:
-        source_name = "首相官邸 RSS" if "kantei.go.jp" in url else "NHKニュース RSS"
+        source_name = (
+            "首相官邸 RSS" if "kantei.go.jp" in url else "NHKニュース RSS"
+        )
         source_links_html += (
             f'<li><a href="{url}" target="_blank">{source_name}</a></li>'
         )
 
-    # 💡 変数の準備がすべて整ったあとに、HTMLの組み立て（f"""）を開始します
     html_content = f"""<!DOCTYPE html>
 <html lang="ja">
 <head>

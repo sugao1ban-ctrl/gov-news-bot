@@ -11,7 +11,7 @@ RSS_URLS = [
     "https://www3.nhk.or.jp/rss/news/cat0.xml",  # NHK
 ]
 # テスト用に、確実にヒットしやすいワード（「日本」など）を一時的に入れて実験するのをおすすめします
-TARGET_KEYWORDS = r"給付金|増税|法改正|記者会見|緊急事態|閣議決定|補正予算|日本|アメリカ|原油|ナフサ"
+TARGET_KEYWORDS = r"給付金|増税|法改正|記者会見|緊急事態|閣議決定|補正予算|日本|アメリカ|原油|ナフサ|給付金|増税|法改正|記者会見|東京|天気|金曜""
 
 JSON_FILE = "news.json"
 HTML_FILE = "index.html"

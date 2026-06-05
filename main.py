@@ -96,7 +96,7 @@ def main():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>省庁・閣議ニュース自動監視ボット</title>
+    <title>省庁・閣議ニュース自動抽出ボット</title>
     <style>
         body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f9fafb; color: #111827; margin: 0; padding: 20px; }}
         .container {{ max-width: 800px; margin: 0 auto; }}
@@ -118,7 +118,7 @@ def main():
 <body>
 <div class="container">
     <header>
-        <h1>🏛️ 省庁ニュース 自動監視ボット</h1>
+        <h1>🏛️省庁・閣議ニュース自動抽出ボット</h1>
         <a href="admin.php" class="btn-setting" target="_blank">⚙ キーワードを変更する</a>
     </header>
 

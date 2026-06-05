@@ -99,7 +99,7 @@ def main():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>省庁・閣議ニュース自動監視ボット</title>
+    <title>省庁・閣議ニュース自動抽出ボット</title>
     <style>
         body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f9fafb; color: #111827; margin: 0; padding: 20px; }}
         .container {{ max-width: 800px; margin: 0 auto; }}
@@ -121,7 +121,7 @@ def main():
 <body>
 <div class="container">
     <header>
-        <h1>🏛️ 省庁ニュース 自動監視ボット</h1>
+        <h1>🏛️省庁・閣議ニュース自動抽出ボット</h1>
         <a href="admin.php" class="btn-setting" target="_blank">⚙ キーワードを変更する</a>
     </header>
 
@@ -175,23 +175,43 @@ async function initializeRealtimeEngine() {{
 
         // 4. ニュースを1つずつ判定して、合致するものだけ画面に組み立てる
         newsListContainer.innerHTML = '';
-        articles.forEach(article => {{
+        articles.forEach(article => {
             const inTitle = pattern.test(article.title || '');
             const inSummary = pattern.test(article.summary || '');
 
-            if (inTitle || inSummary) {{
+            if (inTitle || inSummary) {
                 matchCount++;
+
+                // 💡【新設】URLからどこが発信源（ソース）かを自動判別する処理
+                let sourceName = "不明なソース";
+                const urlStr = article.link || "";
+                if (urlStr.includes("cas.go.jp")) sourceName = "🏛️ 内閣官房";
+                else if (urlStr.includes("meti.go.jp")) sourceName = "🏭 経済産業省";
+                else if (urlStr.includes("fsa.go.jp")) sourceName = "📈 金融庁";
+                else if (urlStr.includes("digital.go.jp")) sourceName = "💻 デジタル庁";
+                else if (urlStr.includes("nikkan.co.jp")) sourceName = "📰 日刊工業新聞";
+                else if (urlStr.includes("nikkei.com")) sourceName = "📰 日本経済新聞";
+                else if (urlStr.includes("impress")) sourceName = "📱 Impress Watch";
+
                 const card = document.createElement('div');
                 card.className = 'card';
-                card.style.display = 'block'; // 条件に合うものだけ表示
+                card.style.display = 'block';
                 card.innerHTML = `
-                    <h3 class="card-title"><a href="${{article.link}}" target="_blank">${{article.title}}</a></h3>
-                    <div class="card-summary">${{article.summary || '概要はありません。'}}</div>
-                    <div class="card-meta">取得日時: ${{article.fetched_at}}</div>
+                    <h3 class="card-title"><a href="${article.link}" target="_blank">${article.title}</a></h3>
+                    
+                    <div style="margin-bottom: 12px; font-size: 0.85em;">
+                        <span style="color: #6b7280;">情報元:</span> 
+                        <a href="${article.link}" target="_blank" style="background: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 4px; text-decoration: none; font-weight: bold;">
+                            ${sourceName}
+                        </a>
+                    </div>
+
+                    <div class="card-summary">${article.summary || '概要はありません。'}</div>
+                    <div class="card-meta">取得日時: ${article.fetched_at}</div>
                 `;
                 newsListContainer.appendChild(card);
-            }}
-        }});
+            }
+        });
 
         if (matchCount === 0) {{
             noNewsMessage.style.display = 'block';

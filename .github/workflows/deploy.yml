@@ -1,0 +1,56 @@
+name: Auto News Update and FTP Deploy
+
+on:
+  schedule:
+    # 30分ごとに自動実行する設定（UTC基準のため、日本時間の毎時0分と30分に実行されます）
+    - cron: '0,30 * * * *'
+  # GitHubの画面から手動でいつでも実行できるようにする設定（テスト用に便利です）
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. GitHub上のコードを仮想環境にチェックアウト（コピー）
+    - name: Checkout repository code
+      uses: actions/checkout@v4
+
+    # 2. Python環境のセットアップ
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    # 3. 必要なライブラリ（feedparser等）のインストール
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    # 4. Pythonスクリプトを実行して HTML / JSON を生成
+    - name: Run Python script
+      env:
+        # スクリプト内で環境変数としてFTP情報を使えるように設定
+        FTP_HOST: ${{ secrets.FTP_HOST }}
+        FTP_USER: ${{ secrets.FTP_USER }}
+        FTP_PASS: ${{ secrets.FTP_PASS }}
+      run: python main.py
+
+    # 5. 生成されたファイルをムームーサーバーへFTP転送
+    - name: FTP Deploy
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      with:
+        server: ${{ secrets.FTP_HOST }}
+        username: ${{ secrets.FTP_USER }}
+        password: ${{ secrets.FTP_PASS }}
+        # サーバー上のアップロード先ディレクトリ（環境に合わせて調整してください）
+        server-dir: /web/
+        # 転送するファイルだけを指定（不要なファイル転送を避ける）
+        local-dir: ./
+        exclude: |
+          **/.git*
+          **/.git*/**
+          main.py
+          requirements.txt
+          README.md

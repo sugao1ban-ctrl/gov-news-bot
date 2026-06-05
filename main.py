@@ -10,8 +10,9 @@ RSS_URLS = [
     "https://www.kantei.go.jp/rss/shinwaku.rdf",  # 首相官邸
     "https://www3.nhk.or.jp/rss/news/cat0.xml",  # NHK
 ]
-# テスト用に、確実にヒットしやすいワードを一時的に入れています
-TARGET_KEYWORDS = r"給付金|税|法改正|記者会見|緊急事態|閣議決定|補正予算|軍備|ナフサ|原油|ワクチン|緊急事態|自粛"
+
+# 💡 キーワードが保存されているサーバー上のテキストファイルのURL
+KEYWORDS_TXT_URL = "https://jpnhack.xyz/gov-news-bot/keywords.txt"
 
 JSON_FILE = "news.json"
 HTML_FILE = "index.html"
@@ -21,6 +22,20 @@ EXISTING_JSON_URL = "https://jpnhack.xyz/gov-news-bot/news.json"
 
 
 def collect_and_generate():
+    # 0. サーバーから「現在のリアルタイムキーワード」をダウンロードして読み込む
+    try:
+        req = requests.get(KEYWORDS_TXT_URL, timeout=10)
+        if req.status_code == 200 and req.text.strip():
+            # サーバー上のテキストをそのままキーワードとして採用
+            TARGET_KEYWORDS = req.text.strip()
+            print(f"現在の監視キーワードを読み込みました: {TARGET_KEYWORDS}")
+        else:
+            # 万が一読み込めなかった場合のバックアップ用キーワード
+            TARGET_KEYWORDS = "給付金|増税|法改正|記者会見"
+    except Exception as e:
+        print(f"キーワードの取得失敗、バックアップを使用します: {e}")
+        TARGET_KEYWORDS = "給付金|増税|法改正|記者会見"
+
     # 1. サーバー上にある「過去の蓄積データ」をダウンロードして読み込む
     existing_articles = []
     try:

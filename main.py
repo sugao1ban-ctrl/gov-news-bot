@@ -3,13 +3,17 @@ import requests
 import json
 from datetime import datetime
 import pytz
-import feedparser  # 💡 特殊な省庁RSSも確実に解析するライブラリ
+import feedparser
+import re
+import socket
 
-# 環境変数から設定を取得
+# 💡 【超重要】すべての通信（feedparser含む）の待ち時間を最大「2秒」に世界一律で強制制限する
+socket.setdefaulttimeout(2.0)
+
 KEYWORDS_JSON_URL = "https://jpnhack.xyz/gov-news-bot/keywords.json"
 EXISTING_JSON_URL = "https://jpnhack.xyz/gov-news-bot/news.json"
 
-# 💡 投資用・国策特化型ソースリスト
+# 各省庁・専門メディアのソース
 RSS_URLS = [
     "https://www.cas.go.jp/jp/seisaku/houan/index.xml",  # 内閣官房
     "https://www.meti.go.jp/press/index.xml",           # 経済産業省
@@ -19,71 +23,69 @@ RSS_URLS = [
 ]
 
 def main():
-    print("--- ニュース取得ロボット起動 (feedparser搭載版) ---")
+    print("--- ニュース取得ロボット起動 (完全タイムアウト制御版) ---")
 
     # 1. サーバーから最新のキーワードJSONを読み込む
     TARGET_KEYWORDS = []
     try:
-        req = requests.get(KEYWORDS_JSON_URL, timeout=10)
+        req = requests.get(KEYWORDS_JSON_URL, timeout=(2.0, 2.0))
         req.encoding = 'utf-8'
         if req.status_code == 200:
             TARGET_KEYWORDS = req.json()
+            print(f"ロリポップから読み込んだキーワード: {TARGET_KEYWORDS}")
     except Exception as e:
-        print(f"キーワードJSONの取得に失敗: {e}")
+        print(f"⚠️ キーワード取得スキップ（タイムアウトまたはブロック）: {e}")
 
-    if not TARGET_KEYWORDS:
-        TARGET_KEYWORDS = ["給付金", "増税", "法改正"]
-
-    # 2. サーバー上にある「過去のニュースデータ」を読み込む
+    # 2. 既存のニュースデータを読み込む
     existing_articles = []
     try:
-        response = requests.get(EXISTING_JSON_URL, timeout=10)
+        response = requests.get(EXISTING_JSON_URL, timeout=(2.0, 2.0))
         response.encoding = 'utf-8'
         if response.status_code == 200:
             existing_articles = response.json()
     except Exception as e:
-        print(f"過去データの取得スキップ: {e}")
+        print(f"既存ニュース読み込みスキップ: {e}")
 
-    existing_links = {item["link"] for item in existing_articles}
+    existing_links = {item["link"] for item in existing_articles if "link" in item}
 
-    # 3. 各RSSフィードから最新ニュースをスキャン
+    # 3. 各RSSフィードから最新ニュースをスキャン（2秒で冷酷に見切る）
     new_count = 0
     for url in RSS_URLS:
-        print(f"フィード巡回中: {url}")
+        print(f"📡 巡回中（最大2秒制限）: {url}")
         try:
-            # 💡 feedparserを使って安全かつ確実にパース
+            # socketのグローバルタイムアウトがここ（内部のurllib）に強制適用されます
             feed = feedparser.parse(url)
             
+            if not feed.entries:
+                print(f"   ℹ️ 応答なし、またはデータが空のためスキップします。")
+                continue
+
             for entry in feed.entries:
                 title = getattr(entry, 'title', '').strip()
                 link = getattr(entry, 'link', '').strip()
                 summary = getattr(entry, 'summary', '').strip()
                 
-                # 概要が空の場合は既存の他フィールドから補完を試みる
                 if not summary and hasattr(entry, 'description'):
                     summary = entry.description.strip()
                 
-                # HTMLタグが混入している場合は簡易除去
                 summary = re.sub(r'<[^>]*?>', '', summary)
 
                 if title and link and (link not in existing_links):
                     existing_articles.append({
                         "title": title,
                         "link": link,
-                        "summary": summary[:200], # 長すぎる場合は200文字でカット
+                        "summary": summary[:200],
                         "fetched_at": datetime.now(pytz.timezone('Asia/Tokyo')).strftime('%Y-%m-%d %H:%M')
                     })
                     existing_links.add(link)
                     new_count += 1
         except Exception as e:
-            print(f"フィード取得エラー ({url}): {e}")
+            print(f"   ❌ 2秒以内に応答がなかったため強制切断しました: {e}")
 
-    print(f"新着ニュースを {new_count} 件追加しました。合計: {len(existing_articles)} 件")
-
-    # 最大蓄積数を 500件 に設定
+    print(f"📝 スキャン完了：新着ニュースを {new_count} 件追加しました。総蓄積数: {len(existing_articles)} 件")
     existing_articles = existing_articles[-500:]
 
-    # 4. news.json を保存出力
+    # 4. news.json をローカルに保存出力
     with open("news.json", "w", encoding="utf-8") as f:
         json.dump(existing_articles, f, ensure_ascii=False, indent=4)
 
@@ -96,7 +98,7 @@ def main():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>省庁・閣議ニュース自動抽出ボット</title>
+    <title>省庁・閣議ニュース自動監視ボット</title>
     <style>
         body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f9fafb; color: #111827; margin: 0; padding: 20px; }}
         .container {{ max-width: 800px; margin: 0 auto; }}
@@ -118,7 +120,7 @@ def main():
 <body>
 <div class="container">
     <header>
-        <h1>🏛️省庁・閣議ニュース自動抽出ボット</h1>
+        <h1>🏛️ 省庁ニュース 自動監視ボット</h1>
         <a href="admin.php" class="btn-setting" target="_blank">⚙ キーワードを変更する</a>
     </header>
 
@@ -149,56 +151,63 @@ async function initializeRealtimeEngine() {{
     try {{
         const cacheBuster = "?t=" + new Date().getTime();
         const [keywordsRes, newsRes] = await Promise.all([
-            fetch('keywords.json' + cacheBuster),
-            fetch('news.json' + cacheBuster)
+            fetch('keywords.json' + cacheBuster).then(r => r.json()).catch(() => []),
+            fetch('news.json' + cacheBuster).then(r => r.json()).catch(() => [])
         ]);
 
-        const keywords = await keywordsRes.json();
-        const articles = await newsRes.json();
+        let keywords = [];
+        if (Array.isArray(keywordsRes)) {{
+            keywords = keywordsRes;
+        }} else if (typeof keywordsRes === 'object' && keywordsRes !== null) {{
+            keywords = Object.values(keywordsRes);
+        }} else if (typeof keywordsRes === 'string') {{
+            keywords = [keywordsRes];
+        }}
+        
+        keywords = keywords.map(k => String(k).trim()).filter(k => k !== "");
 
-        tagsContainer.innerHTML = keywords.map(k => `<span class="tag">${{k}}</span>`).join('');
+        const showAllMode = keywords.length === 0 || keywords.includes("の") || keywords.includes("について");
 
         if (keywords.length === 0) {{
-            noNewsMessage.style.display = 'block';
-            return;
+            tagsContainer.innerHTML = '<span style="color:#6b7280;">未設定（全件表示モード）</span>';
+        }} else {{
+            tagsContainer.innerHTML = keywords.map(k => `<span class="tag">${{k}}</span>`).join('');
         }}
 
-        const pattern = new RegExp(keywords.join('|'), 'i');
+        const pattern = keywords.length > 0 ? new RegExp(keywords.map(k => k.replace(/[-\/\\\\^$*+?.()|[\]{{}}]/g, '\\\\$&')).join('|'), 'i') : null;
         let matchCount = 0;
 
         newsListContainer.innerHTML = '';
-        articles.forEach(article => {{
-            const inTitle = pattern.test(article.title || '');
-            const inSummary = pattern.test(article.summary || '');
+        noNewsMessage.style.display = 'none';
 
-            if (inTitle || inSummary) {{
+        newsRes.forEach(article => {{
+            const inTitle = pattern ? pattern.test(article.title || '') : false;
+            const inSummary = pattern ? pattern.test(article.summary || '') : false;
+
+            if (showAllMode || inTitle || inSummary) {{
                 matchCount++;
 
-                let sourceName = "不明なソース";
+                let sourceName = "🏛️ 省庁ニュース";
                 const urlStr = article.link || "";
                 if (urlStr.includes("cas.go.jp")) sourceName = "🏛️ 内閣官房";
                 else if (urlStr.includes("meti.go.jp")) sourceName = "🏭 経済産業省";
                 else if (urlStr.includes("fsa.go.jp")) sourceName = "📈 金融庁";
                 else if (urlStr.includes("digital.go.jp")) sourceName = "💻 デジタル庁";
                 else if (urlStr.includes("nikkan.co.jp")) sourceName = "📰 日刊工業新聞";
-                else if (urlStr.includes("nikkei.com")) sourceName = "📰 日本経済新聞";
-                else if (urlStr.includes("impress")) sourceName = "📱 Impress Watch";
 
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.style.display = 'block';
                 card.innerHTML = `
                     <h3 class="card-title"><a href="${{article.link}}" target="_blank">${{article.title}}</a></h3>
-                    
                     <div style="margin-bottom: 12px; font-size: 0.85em;">
                         <span style="color: #6b7280;">情報元:</span> 
-                        <a href="${{article.link}}" target="_blank" style="background: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 4px; text-decoration: none; font-weight: bold;">
+                        <span style="background: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 4px; font-weight: bold;">
                             \${{sourceName}}
-                        </a>
+                        </span>
                     </div>
-
-                    <div class="card-summary">${{article.summary || '概要はありません。'}}</div>
-                    <div class="card-meta">取得日時: ${{article.fetched_at}}</div>
+                    <div class="card-summary">\${{article.summary || '概要はありません。'}}</div>
+                    <div class="card-meta">取得日時: \${{article.fetched_at}}</div>
                 `;
                 newsListContainer.appendChild(card);
             }}
@@ -209,8 +218,8 @@ async function initializeRealtimeEngine() {{
         }}
 
     }} catch (error) {{
-        console.error("0秒反映エンジンの稼働エラー:", error);
-        tagsContainer.innerText = "データの読み込みに失敗しました。";
+        console.error("エンジン駆動エラー:", error);
+        tagsContainer.innerText = "エラーが発生しました。";
     }}
 }}
 

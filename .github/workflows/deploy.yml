@@ -2,12 +2,10 @@ name: Auto News Update and FTP Deploy
 
 on:
   push:
-    branches: [ "main" ]
-
+    branches:
+      - main
   schedule:
-    # 30分ごとに自動実行する設定（UTC基準のため、日本時間の毎時0分と30分に実行されます）
     - cron: '0,30 * * * *'
-  # GitHubの画面から手動でいつでも実行できるようにする設定（テスト用に便利です）
   workflow_dispatch:
   repository_dispatch:
 
@@ -16,24 +14,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. GitHub上のコードを仮想環境にチェックアウト（コピー）
       - name: Checkout repository code
         uses: actions/checkout@v4
 
-      # 2. Python環境のセットアップ
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      # 3. 必要なライブラリ（feedparser等）のインストール
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytz feedparser
 
-      # 4. Pythonスクリプトを実行して、ファイルを確認し、Gitに認識させる
       - name: Run Python script and Verify files
         env:
           FTP_HOST: ${{ secrets.FTP_HOST }}
@@ -43,10 +37,9 @@ jobs:
           python main.py
           git add -f news.json index.html
           ls -la
-          if [ ! -f news.json ]; then echo "news.json が存在しません"; fi
-          if [ ! -f index.html ]; then echo "index.html が存在しません"; fi
+          if [ ! -f news.json ]; then echo "news.json missing"; fi
+          if [ ! -f index.html ]; then echo "index.html missing"; fi
 
-      # 5. 生成されたファイルをムームーサーバーへFTP転送
       - name: FTP Deploy
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -55,8 +48,8 @@ jobs:
           password: ${{ secrets.FTP_PASS }}
           server-dir: /web/jpnhack.xyz/gov-news-bot/
           local-dir: ./
-          port: 21          # <--- 追記：明示的に21番ポートを指定
-          security: loose   # <--- 追記：FTPS（明暗号化通信）を許可する設定
+          port: 21
+          security: loose
           exclude: |
             main.py
             requirements.txt

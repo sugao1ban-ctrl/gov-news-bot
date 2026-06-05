@@ -84,7 +84,7 @@ def main():
     print(f"新着ニュースを {new_count} 件追加しました。合計: {len(existing_articles)} 件")
 
     # 最新の50件のみ保持して古いものはカット
-    existing_articles = existing_articles[-50:]
+    existing_articles = existing_articles[-1000:]
 
     # 4. news.json を保存出力
     with open("news.json", "w", encoding="utf-8") as f:

@@ -1,6 +1,10 @@
 name: Auto News Update and FTP Deploy
 
 on:
+  # 💡【追加】mainブランチにファイルを保存（Commit/Push）した瞬間に自動起動させる
+  push:
+    branches: [ "main" ]
+
   schedule:
     # 30分ごとに自動実行する設定（UTC基準のため、日本時間の毎時0分と30分に実行されます）
     - cron: '0,30 * * * *'

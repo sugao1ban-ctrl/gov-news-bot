@@ -84,7 +84,14 @@ def collect_and_generate():
         json.dump(existing_articles, f, ensure_ascii=False, indent=4)
 
     # 4. HTMLファイルを生成
-    now_str = datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+    source_links_html = ""
+    for url in RSS_URLS:
+        source_name = "首相官邸 RSS" if "kantei.go.jp" in url else "NHKニュース RSS"
+        # ラベル（source_name）を <a> タグで囲むことで、ラベル自体がリンクになります
+        source_links_html += (
+            f'<li><a href="{url}" target="_blank">{source_name}</a></li>'
+        )
+    
     html_content = f"""<!DOCTYPE html>
 <html lang="ja">
 <head>

@@ -131,4 +131,9 @@ def collect_and_generate():
 
 
 if __name__ == "__main__":
-    collect_and_generate()
+    # 実行結果がTrue（ファイル生成成功）だった場合
+    if collect_and_generate():
+        print("ファイルの生成が正常に完了しました。")
+    else:
+        # ニュースが0件でファイルを更新しなかった場合、プログラムを終了する
+        print("更新が必要なニュースはありませんでした。")

@@ -6,7 +6,7 @@ on:
     - cron: '0,30 * * * *'
   # GitHubの画面から手動でいつでも実行できるようにする設定（テスト用に便利です）
   workflow_dispatch:
-
+  repository_dispatch:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest

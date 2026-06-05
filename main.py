@@ -25,6 +25,7 @@ def collect_and_generate():
     # 0. サーバーから「現在のリアルタイムキーワード」をダウンロードして読み込む
     try:
         req = requests.get(KEYWORDS_TXT_URL, timeout=10)
+        req.encoding = 'utf-8'
         if req.status_code == 200 and req.text.strip():
             # サーバー上のテキストをそのままキーワードとして採用
             TARGET_KEYWORDS = req.text.strip()

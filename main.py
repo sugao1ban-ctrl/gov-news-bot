@@ -37,13 +37,22 @@ def collect_and_generate():
         print(f"キーワードの取得失敗、バックアップを使用します: {e}")
         TARGET_KEYWORDS = "給付金|増税|法改正|記者会見"
 
-    # 1. サーバー上にある「過去の蓄積データ」をダウンロードして読み込む
+   # 1. サーバー上にある「過去の蓄積データ」をダウンロードして読み込む
     existing_articles = []
     try:
         response = requests.get(EXISTING_JSON_URL, timeout=10)
         if response.status_code == 200:
-            existing_articles = response.json()
-            print(f"過去のニュースを {len(existing_articles)} 件読み込みました。")
+            raw_articles = response.json()
+            print(f"過去のニュースを {len(raw_articles)} 件読み込みました。")
+            
+            # 💡【新設】過去のニュースも、新しいキーワードに合うものだけを生き残らせる（フィルタリング）
+            for item in raw_articles:
+                title = item.get("title", "")
+                summary = item.get("summary", "")
+                if re.search(TARGET_KEYWORDS, title) or re.search(TARGET_KEYWORDS, summary):
+                    existing_articles.append(item)
+            
+            print(f"新しいキーワードに合致した過去のニュース: {len(existing_articles)} 件を残します。")
     except Exception as e:
         print(f"過去データの取得スキップ（初回、またはファイル未存在）: {e}")
 

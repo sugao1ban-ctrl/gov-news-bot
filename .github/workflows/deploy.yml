@@ -1,7 +1,6 @@
 name: Auto News Update and FTP Deploy
 
 on:
-  # 💡【追加】mainブランチにファイルを保存（Commit/Push）した瞬間に自動起動させる
   push:
     branches: [ "main" ]
 

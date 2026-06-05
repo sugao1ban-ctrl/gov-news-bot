@@ -112,7 +112,7 @@ def collect_and_generate():
             f'<li><a href="{url}" target="_blank">{source_name}</a></li>'
         )
 
-   html_content = f"""<!DOCTYPE html>
+  html_content = f"""<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -129,7 +129,7 @@ def collect_and_generate():
         .info-box a {{ color: #0056b3; text-decoration: none; font-weight: bold; }}
         .info-box a:hover {{ text-decoration: underline; }}
         
-        /* 👇 追加：キーワード変更ボタンのスタイル */
+        /* キーワード変更ボタンのスタイル */
         .btn-setting-wrapper {{ text-align: right; margin-top: 10px; }}
         .btn-setting {{ background: #3b82f6; color: white; text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 0.85em; font-weight: bold; display: inline-block; }}
         .btn-setting:hover {{ background: #2563eb; color: white; text-decoration: none; }}
@@ -149,8 +149,6 @@ def collect_and_generate():
             <ul>
                 {source_links_html}
             </ul>
-            
-            # 👇 ここに「キーワード変更」ボタンを新しく配置しました
             <div class="btn-setting-wrapper">
                 <a href="admin.html" class="btn-setting">⚙ キーワードを変更する</a>
             </div>
@@ -158,6 +156,7 @@ def collect_and_generate():
 
         <p style="text-align:right; color:#666; font-size: 0.9em;">最終更新: {now_str} (30分おき自動更新)</p>
     """
+
     with open(
         os.path.join(os.path.dirname(__file__), HTML_FILE),
         "w",

@@ -49,8 +49,6 @@ jobs:
         port: 21          # <--- 追記：明示的に21番ポートを指定
         security: loose   # <--- 追記：FTPS（明暗号化通信）を許可する設定
         exclude: |
-          **/.git*
-          **/.git*/**
           main.py
           requirements.txt
           README.md
